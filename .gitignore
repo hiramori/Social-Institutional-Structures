@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+#specific paths
+/data
+
+#specific file types
+*.pdf
