@@ -210,7 +210,7 @@ data <- mutate(data, eduyear = case_when(highschool == 1 ~ 12,
                                          grad == 1 ~ 18))
 
 #calculate years of experience
-data <- mutate(data, exp = age-eduyear)
+data <- mutate(data, exp = age-eduyear-6)
 ```
 
 ```{r}
