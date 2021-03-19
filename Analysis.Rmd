@@ -1,0 +1,381 @@
+---
+title: "Analysis for the Social-Institutional Structures paper"
+author: "Daiki Hiramori^[PhD candidate, Department of Sociology, University of Washington]"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+    pdf_document:
+        latex_engine: xelatex
+geometry: margin = 1in
+mainfont: Times New Roman
+fontsize: 11pt
+header-includes:
+  - \usepackage{indentfirst}
+  - \setlength\parindent{1cm}
+  - \usepackage{xltxtra}
+  - \usepackage{zxjatype}
+  - \usepackage[hiragino-pron]{zxjafont}
+---
+
+```{r}
+#penalize excessive significant figures
+options(digits = 3)
+
+#prevent scientific notation
+options(scipen = 10)
+
+#packages used in this analysis
+library(tidyverse)
+library(haven)
+library(naniar)
+library(broom)
+library(socviz)
+library(ggpubr)
+library(gtsummary)
+```
+
+```{r}
+#import raw data
+data <- read_sav("data/nijiVOICE2018.sav")
+data <- as_factor(data, levels = "labels")
+
+#rename variables
+data$age <- as.numeric(data$q0001) + 9
+data$laborforce <- data$q0002
+data$empstatus <- data$q0004 
+data$sex <- data$q0005
+data$gender <- data$q0006
+data$sexorit <- data$q0009
+data$workhour <- as.numeric(data$q0037)
+data$occ <- data$q0039
+data$earnings <- data$q0041
+data$partner <- data$q0043_0001
+data$parent <- data$q0043_0002
+data$educ <- data$q0046
+data$educ2 <- data$q0047
+
+#select the variables used in the analysis
+data <- data %>% select(age, laborforce, empstatus, sex, gender, 
+                        sexorit, workhour,
+                        occ, earnings, partner,
+                        parent, educ, educ2)
+```
+
+```{r}
+#check descriptives
+table(data$age, exclude = FALSE)
+table(data$laborforce, exclude = FALSE)
+table(data$empstatus, exclude = FALSE)
+table(data$sex, exclude = FALSE)
+table(data$gender, exclude = FALSE)
+table(data$sexorit, exclude = FALSE)
+table(data$workhour, exclude = FALSE)
+table(data$occ, exclude = FALSE)
+table(data$earnings, exclude = FALSE)
+table(data$partner, exclude = FALSE)
+table(data$parent, exclude = FALSE)
+table(data$educ, exclude = FALSE)
+table(data$educ2, exclude = FALSE)
+```
+
+```{r}
+#recode variables and generate dummy variables
+#note that the original data are entirely entered in Japanese
+
+#recode the employment status variable
+data$empstatus <- recode(data$empstatus,
+                "パート、アルバイト、臨時雇い" = "パート",
+                "会社などの経営者・役員" = "正規雇用",
+                "内職" = "非正規雇用",
+                "契約社員・嘱託" = "非正規雇用",
+                "正社員" = "正規雇用",
+                "派遣社員" = "非正規雇用",
+                "自営業の家族従業者" = "自営家族",
+                "自営業主・自由業者" = "自営家族")
+
+#generate dummy variables for employment status
+#(standard, non-standard, part-time)
+data <- mutate(data, permanent = ifelse(
+  data$empstatus == "正規雇用", "1", "0"))
+data <- mutate(data, temp = ifelse(
+  data$empstatus == "非正規雇用", "1", "0"))
+data <- mutate(data, part = ifelse(
+  data$empstatus == "パート", "1", "0"))
+
+#generate dummy variables for transgender status
+#(cisgender, binary transgender, and X-gender)
+data <- mutate(data, cisgender = ifelse(data$gender == "女性" &
+                                       data$sex == "女性" |
+                                       data$gender =="男性" &
+                                       data$sex == "男性",
+                                      "1", "0"))
+
+data <- mutate(data, transb = ifelse(data$gender == "女性" &
+                                       data$sex == "男性" |
+                                       data$gender =="男性" &
+                                       data$sex == "女性",
+                                      "1", "0"))
+
+data <- mutate(data, transx = 
+                 ifelse(data$gender %in%
+                          c("Xジェンダー、中性、両性、無性、不定性", 
+                            "その他 (具体的に)"), "1", "0"))
+
+#generate dummy variables for sexual orientation
+#(heterosexual, same-sex, bisexual, other sexual orientation)
+data <- mutate(data, hetero = 
+                 ifelse(data$sexorit == 
+                          "ヘテロセクシュアル、異性愛者", "1", "0"))
+data <- mutate(data, samesex = 
+                 ifelse(data$sexorit == 
+                          "ゲイ、レズビアン、同性愛者", "1", "0"))
+data <- mutate(data, bisexual = 
+                 ifelse(data$sexorit == "バイセクシュアル、両性愛者" | 
+                        data$sexorit == "パンセクシュアル、全性愛者", "1", "0"))
+data <- mutate(data, otherorit = 
+                 ifelse(data$sexorit == "アセクシュアル、無性愛者" | 
+                        data$sexorit == "決めたくない、決めていない", "1", "0"))
+
+#generate dummy variables for occupation
+#(managerial, professional, clerical ,service, blue-collar, other occupation)
+data <- mutate(data, manage = ifelse(
+  data$occ == "管理職（課長相当以上の役職）", "1", "0"))
+data <- mutate(data, prof = ifelse(
+  data$occ == "専門職・技術職", "1", "0"))
+data <- mutate(data, clerical = ifelse(
+  data$occ == "事務職", "1", "0"))
+data <- mutate(data, sales = ifelse(
+  data$occ == "販売・営業職", "1", "0"))
+data <- mutate(data, service = ifelse(
+  data$occ == 
+  "サービスの仕事（介護職員、理美容師、接客業、ビル管理人を含む）", "1", "0"))
+data <- mutate(data, blue = ifelse(
+  data$occ == "モノを製造・加工する仕事" |
+  data$occ == "保安の仕事（自衛官、警察官、消防士、警備員など）" |
+  data$occ == "建設現場の仕事・採掘の仕事" |
+  data$occ == "農林漁業の仕事" |
+  data$occ == "機械や設備・乗物を運転する仕事" |
+  data$occ == "運搬・清掃・包装の仕事",
+  "1", "0"))
+data <- mutate(data, otherocc = ifelse(
+  data$occ == "その他 (具体的に)", "1", "0"))
+
+#generate dummy variables for partner and parent statuses
+#(1 = Yes)
+data <- mutate(data, partner = ifelse(data$partner == "1人" |
+                                      data$partner == "2人" |
+                                      data$partner == "3人以上", "1", "0"))
+data <- mutate(data, parent = ifelse(data$parent == "1人" |
+                                      data$parent == "2人" |
+                                      data$parent == "3人以上", "1", "0"))
+
+#these are part of one multiple-choice question, so
+#replace NAs by assigning 0s
+data <- replace_na(data, list(partner = 0, parent = 0))
+
+#treat those with unclear education information as missing
+data <- replace_with_na_at(data, .vars = c("educ"),
+                     condition = ~.x == "その他 (具体的に)")
+
+#generate dummy variables for education
+#(HS or less, junior college, university, graduate school)
+data <- mutate(data, highschool = ifelse(
+  data$educ == "2" | 
+  data$educ == "3" | 
+  data$educ == "4" |
+  data$educ == "5" & data$educ2 == "中退" |
+  data$educ == "5" & data$educ2 == "在学中",
+  "1", "0"))
+
+data <- mutate(data, college = ifelse(
+  data$educ == "5" & data$educ2 == "卒業" |
+  data$educ == "6" & data$educ2 == "中退" |
+  data$educ == "6" & data$educ2 == "在学中",
+  "1", "0"))
+
+data <- mutate(data, univ = ifelse(
+  data$educ == "6" & data$educ2 == "卒業" |
+  data$educ == "7" & data$educ2 == "中退" |
+  data$educ == "7" & data$educ2 == "在学中",
+  "1", "0"))
+
+data <- mutate(data, grad = ifelse(
+  data$educ == "7" & data$educ2 == "卒業" |
+  data$educ == "8",
+  "1", "0"))
+
+#calculate years of education
+data <- mutate(data, eduyear = case_when(highschool == 1 ~ 12,
+                                         college == 1 ~ 14,
+                                         univ == 1 ~ 16,
+                                         grad == 1 ~ 18))
+
+#calculate years of experience
+data <- mutate(data, exp = age-eduyear)
+```
+
+```{r}
+#limit the analytic target to those aged between 18-59, those who currently
+#work as an employee (meaning that the self-employed are excluded)
+#with some earnings from work (meaning that those with zero earnings
+#or unknown earnings from work are excluded)
+
+data <- data %>% filter(age > 17 & age < 60 
+                        & laborforce == "仕事を持ち、働いている"
+                        & earnings != "仕事で得た収入はなかった"
+                        & earnings != "わからない"
+                        & empstatus != "自営家族")
+
+#respondents with NAs are excluded from the analysis
+data <- drop_na(data)
+```
+
+```{r}
+#Ligon's (1989) quantile method to estimate the midpoint
+#of the top income category
+table(data$earnings)
+x <- 150000 #lowest value of the top earnings category
+a <- log10(140000) #lowest value of the second top category
+b <- log10(x)
+c <- log10(15+2) #number of people in the top two categories
+d <- log10(15) #number of people in the top category
+v <- (c - d) /(b - a)
+ligon <- x * v/ (v - 1)
+print(ligon)
+```
+
+```{r}
+#use midpoints for yearly earnings (also convert from JPY to USD)
+data$earnings <- recode(data$earnings, 
+                         "100万円未満" = 5000,
+                         "100万円以上〜200万円未満" = 15000,
+                         "200万円以上〜300万円未満" = 25000,
+                         "300万円以上〜400万円未満" = 35000,
+                         "400万円以上〜500万円未満" = 45000,
+                         "500万円以上〜600万円未満" = 55000,
+                         "600万円以上〜700万円未満" = 65000,
+                         "700万円以上〜800万円未満" = 75000,
+                         "800万円以上〜900万円未満" = 85000,
+                         "900万円以上〜1000万円未満" = 95000,
+                         "1000万円以上〜1100万円未満" = 105000,
+                         "1100万円以上〜1200万円未満" = 115000,
+                         "1200万円以上〜1300万円未満" = 125000,
+                         "1300万円以上〜1400万円未満" = 135000,
+                         "1400万円以上〜1500万円未満" = 145000,
+                         "1500万円以上" = 334242)
+data$yrworkhour <- 50*data$workhour #yearly work hours
+data$wage <- data$earnings/data$yrworkhour #hourly wage
+data$logwage <- log(data$wage)
+```
+
+```{r}
+#all of the analyses are separated by assigned sex at birth
+#model1
+model1 <- data %>%
+  split(.$sex) %>%
+  map(~ lm(logwage ~ samesex + bisexual + otherorit + transb + transx, data = .))
+summary(model1$女性)
+summary(model1$男性)
+```
+
+```{r}
+#figures for Model 1
+out_conf1 <- tidy(model1$女性, conf.int = TRUE, conf.level = 0.9) #90%CI
+out_conf1$estimate <- exp(out_conf1$estimate) #Exp(B)
+out_conf1$conf.low <- exp(out_conf1$conf.low) #Exp(B)
+out_conf1$conf.high <- exp(out_conf1$conf.high) #Exp(B)
+out_conf1 <- round_df(out_conf1, dig = 3)
+out_conf1 <- subset(out_conf1, term %nin% "(Intercept)")
+out_conf1$term <- recode(out_conf1$term, "samesex1" = "Same-Sex",
+                        "bisexual1" = "Bisexual",
+                        "otherorit1" = "Other Orientation",
+                        "transb1" = "Binary Transgender",
+                        "transx1" = "X-Gender")
+plot1 <- ggplot(out_conf1, mapping = aes(x=reorder(term, -1*estimate),
+                                         y=estimate*100, ymin = conf.low*100,
+                                         ymax = conf.high*100)) +
+  ylim(30,150) +
+  geom_hline(yintercept = 100, color = "gray80") +
+  geom_text(mapping = aes(label = paste(estimate*100, "%", sep = "")), 
+              hjust = -0.3, vjust = -0.3) +
+  geom_pointrange() + coord_flip() + 
+  labs(x="Reference = Heterosexual (Sexual Orientation),\n Cisgender (Transgender Status)",
+      y="Wage Rates") +
+  ggtitle("Assigned Females at Birth (Model 1)") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+out_conf2 <- tidy(model1$男性, conf.int = TRUE, conf.level = 0.9) #90%CI
+out_conf2$estimate <- exp(out_conf2$estimate) #Exp(B)
+out_conf2$conf.low <- exp(out_conf2$conf.low) #Exp(B)
+out_conf2$conf.high <- exp(out_conf2$conf.high) #Exp(B)
+out_conf2 <- round_df(out_conf2, dig = 3)
+out_conf2 <- subset(out_conf2, term %nin% "(Intercept)")
+out_conf2$term <- recode(out_conf2$term, "samesex1" = "Same-Sex",
+                        "bisexual1" = "Bisexual",
+                        "otherorit1" = "Other Orientation",
+                        "transb1" = "Binary Transgender",
+                        "transx1" = "X-Gender")
+plot2 <- ggplot(out_conf2, mapping = aes(x=reorder(term, -1*estimate),
+                                         y=estimate*100, ymin = conf.low*100,
+                                         ymax = conf.high*100)) +
+  ylim(30,150) +
+  geom_hline(yintercept = 100, color = "gray80") +
+  geom_text(mapping = aes(label = paste(estimate*100, "%", sep = "")), 
+              hjust = -0.3, vjust = -0.3) +
+  geom_pointrange() + coord_flip() + 
+  labs(x="Reference = Heterosexual (Sexual Orientation),\n Cisgender (Transgender Status)",
+       y="Wage Rates") +
+  ggtitle("Assigned Males at Birth (Model 1)") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+#arrange plot 1 and 2 (Model 1 for AFAB and AMAB)
+ggarrange(plot1, plot2, ncol = 1, nrow = 2, align = "hv") +
+ggsave("figure/figure1.png", width = 6.5, height = 8.6)
+```
+
+```{r}
+#model2
+model2 <- data %>%
+  split(.$sex) %>%
+  map(~ lm(logwage ~ samesex + bisexual  + otherorit + transb + transx
+           + partner + parent, data = .)) 
+summary(model2$女性)
+summary(model2$男性)
+
+#model3
+model3 <- data %>%
+  split(.$sex) %>%
+  map(~ lm(logwage ~ samesex + bisexual  + otherorit + transb + transx
+           + partner + parent + college + univ + grad + exp + I(exp^2/100),
+           data = .)) 
+summary(model3$女性)
+summary(model3$男性)
+
+#model4
+model4 <- data %>%
+  split(.$sex) %>%
+  map(~ lm(logwage ~ samesex + bisexual + otherorit + transb + transx 
+           + partner + parent + college + univ + grad + exp + I(exp^2/100) 
+           + prof + clerical + sales + service + blue + otherocc, data = .)) 
+summary(model4$女性)
+summary(model4$男性)
+
+#model5
+model5 <- data %>%
+  split(.$sex) %>%
+  map(~ lm(logwage ~ samesex + bisexual + otherorit + transb + transx
+           + partner + parent + college + univ + grad + exp + I(exp^2/100) 
+           + prof + clerical + sales + service + blue + otherocc +
+             temp + part, data = .))
+summary(model5$女性)
+summary(model5$男性)
+```
+
+```{r, message=FALSE}
+#check descriptives
+data %>% tbl_summary(by = sex, statistic = list(all_continuous() ~ "{mean} ({sd})", all_categorical() ~ "{n} ({p}%)"), digits = all_continuous() ~ 2) 
+```
+
