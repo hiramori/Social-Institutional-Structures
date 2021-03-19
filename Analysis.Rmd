@@ -293,7 +293,7 @@ out_conf1$term <- recode(out_conf1$term, "samesex1" = "Same-Sex",
 plot1 <- ggplot(out_conf1, mapping = aes(x=reorder(term, -1*estimate),
                                          y=estimate*100, ymin = conf.low*100,
                                          ymax = conf.high*100)) +
-  ylim(30,150) +
+  ylim(50,140) +
   geom_hline(yintercept = 100, color = "gray80") +
   geom_text(mapping = aes(label = paste(estimate*100, "%", sep = "")), 
               hjust = -0.3, vjust = -0.3) +
@@ -319,7 +319,7 @@ out_conf2$term <- recode(out_conf2$term, "samesex1" = "Same-Sex",
 plot2 <- ggplot(out_conf2, mapping = aes(x=reorder(term, -1*estimate),
                                          y=estimate*100, ymin = conf.low*100,
                                          ymax = conf.high*100)) +
-  ylim(30,150) +
+  ylim(50,140) +
   geom_hline(yintercept = 100, color = "gray80") +
   geom_text(mapping = aes(label = paste(estimate*100, "%", sep = "")), 
               hjust = -0.3, vjust = -0.3) +
