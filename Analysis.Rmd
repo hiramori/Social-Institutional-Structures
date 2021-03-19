@@ -333,7 +333,7 @@ plot2 <- ggplot(out_conf2, mapping = aes(x=reorder(term, -1*estimate),
 ```{r}
 #arrange plot 1 and 2 (Model 1 for AFAB and AMAB)
 ggarrange(plot1, plot2, ncol = 1, nrow = 2, align = "hv") +
-ggsave("figure/figure1.png", width = 6.5, height = 8.6)
+ggsave("figure/figure1.eps", width = 6.5, height = 8.6)
 ```
 
 ```{r}
