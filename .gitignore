@@ -5,6 +5,7 @@
 
 #specific paths
 /data
+/figure
 
 #specific file types
 *.pdf
