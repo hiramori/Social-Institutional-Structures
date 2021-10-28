@@ -298,7 +298,7 @@ plot1 <- ggplot(out_conf1, mapping = aes(x=reorder(term, -1*estimate),
   geom_pointrange() + coord_flip() + 
   labs(x="Reference = Heterosexual (Sexual Orientation),\n Cisgender (Transgender Status)",
       y="Wage Rates") +
-  ggtitle("Those Assigned Female at Birth (Model 1)") +
+  ggtitle("Assigned Females at Birth (Model 1)") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
@@ -324,7 +324,7 @@ plot2 <- ggplot(out_conf2, mapping = aes(x=reorder(term, -1*estimate),
   geom_pointrange() + coord_flip() + 
   labs(x="Reference = Heterosexual (Sexual Orientation),\n Cisgender (Transgender Status)",
        y="Wage Rates") +
-  ggtitle("Those Assigned Male at Birth (Model 1)") +
+  ggtitle("Assigned Males at Birth (Model 1)") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
